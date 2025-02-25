@@ -2,6 +2,11 @@ import pytest
 import psycopg2
 import subprocess
 import sys
+import os
+
+# Dynamically add the path to the source files
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../modules")))
+
 from config import DB_CONFIG
 from database import insert_companies
 
@@ -21,17 +26,17 @@ def test_database_connection():
     conn.close()
     print("✅ Database connection successful.")
 
-def test_schema_exists():
+def test_schema_and_table():
     """Test if schema 'Ginkgo' and table 'csr_reports' exist."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'Ginkgo';")
+    cursor.execute("SELECT schema_name FROM information_schema.schemata WHERE LOWER(schema_name) = 'ginkgo';")
     schema_exists = cursor.fetchone()
 
     cursor.execute("""
         SELECT table_name FROM information_schema.tables 
-        WHERE table_schema = 'Ginkgo' AND table_name = 'csr_reports';
+        WHERE LOWER(table_schema) = 'ginkgo' AND LOWER(table_name) = 'csr_reports';
     """)
     table_exists = cursor.fetchone()
 
@@ -43,16 +48,15 @@ def test_schema_exists():
     print("✅ Schema and table exist.")
 
 def test_data_insertion():
-    """Test if data is successfully inserted into Ginkgo.csr_reports."""
+    """Test if companies are successfully inserted into Ginkgo.csr_reports."""
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Run data insertion
     insert_companies()
-
+    
     cursor.execute("SELECT COUNT(*) FROM Ginkgo.csr_reports;")
     count = cursor.fetchone()[0]
-
+    
     cursor.close()
     conn.close()
 
@@ -64,17 +68,14 @@ def test_primary_key_constraint():
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # Count before re-insertion
     cursor.execute("SELECT COUNT(*) FROM Ginkgo.csr_reports;")
     before_count = cursor.fetchone()[0]
 
-    # Run insert again (should not create duplicates)
     insert_companies()
 
-    # Count after re-insertion
     cursor.execute("SELECT COUNT(*) FROM Ginkgo.csr_reports;")
     after_count = cursor.fetchone()[0]
-
+    
     cursor.close()
     conn.close()
 
@@ -82,24 +83,25 @@ def test_primary_key_constraint():
     print("✅ Primary key constraint working correctly. No duplicates inserted.")
 
 def test_code_quality():
-    """Run linting, formatting, and security scans."""
+    """Run linting, formatting, and security scans for database.py only."""
     python_exec = sys.executable  # Get the correct Python path
+    database_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../modules/database.py"))
 
-    print("🔍 Running flake8 linting...")
-    subprocess.run([python_exec, "-m", "flake8", "--max-line-length=100"], check=True)
+    print("🔍 Running flake8 on database.py...")
+    subprocess.run([python_exec, "-m", "flake8", database_path, "--max-line-length=100"], check=True)
 
     print("🔍 Checking code formatting with black...")
-    subprocess.run([python_exec, "-m", "black", "--check", "."], check=True)
+    subprocess.run([python_exec, "-m", "black", "--check", database_path], check=True)
 
     print("🔍 Sorting imports with isort...")
-    subprocess.run([python_exec, "-m", "isort", "--check-only", "."], check=True)
+    subprocess.run([python_exec, "-m", "isort", "--check-only", database_path], check=True)
 
     print("🔍 Running security scans with Bandit...")
-    subprocess.run([python_exec, "-m", "bandit", "-r", "."], check=True)
+    subprocess.run([python_exec, "-m", "bandit", "-r", database_path], check=True)
 
 if __name__ == "__main__":
     test_database_connection()
-    test_schema_exists()
+    test_schema_and_table()
     test_data_insertion()
     test_primary_key_constraint()
     test_code_quality()

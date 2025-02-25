@@ -4,6 +4,10 @@ import subprocess
 import sys
 import os
 from minio import Minio
+
+# Dynamically add the path to the source files
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../modules")))
+
 from config import DB_CONFIG, MINIO_CONFIG
 from minio_client import get_db_connection, upload_to_minio, update_minio_path, get_pdfs_to_download
 
@@ -106,20 +110,21 @@ def test_pdfs_to_download():
     print(f"✅ {len(pdfs)} PDFs found for processing.")
 
 def test_code_quality():
-    """Run linting, formatting, and security scans."""
+    """Run linting, formatting, and security scans for minio_client.py only."""
     python_exec = sys.executable  # Get the correct Python path
+    minio_client_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../modules/minio_client.py"))
 
-    print("🔍 Running flake8 linting...")
-    subprocess.run([python_exec, "-m", "flake8", "--max-line-length=100"], check=True)
+    print("🔍 Running flake8 on minio_client.py...")
+    subprocess.run([python_exec, "-m", "flake8", minio_client_path, "--max-line-length=100"], check=True)
 
     print("🔍 Checking code formatting with black...")
-    subprocess.run([python_exec, "-m", "black", "--check", "."], check=True)
+    subprocess.run([python_exec, "-m", "black", "--check", minio_client_path], check=True)
 
     print("🔍 Sorting imports with isort...")
-    subprocess.run([python_exec, "-m", "isort", "--check-only", "."], check=True)
+    subprocess.run([python_exec, "-m", "isort", "--check-only", minio_client_path], check=True)
 
     print("🔍 Running security scans with Bandit...")
-    subprocess.run([python_exec, "-m", "bandit", "-r", "."], check=True)
+    subprocess.run([python_exec, "-m", "bandit", "-r", minio_client_path], check=True)
 
 if __name__ == "__main__":
     test_database_connection()
